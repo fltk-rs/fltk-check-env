@@ -39,6 +39,7 @@ fn main() {
             println!("cargo:rustc-link-lib=framework=Carbon");
             println!("cargo:rustc-link-lib=framework=Cocoa");
             println!("cargo:rustc-link-lib=framework=ApplicationServices");
+            println!("cargo:rustc-link-lib=framework=OpenGL");
         }
         "windows" => {
             println!("cargo:rustc-link-lib=dylib=ws2_32");
@@ -55,6 +56,8 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=kernel32");
             println!("cargo:rustc-link-lib=dylib=odbc32");
             println!("cargo:rustc-link-lib=dylib=gdiplus");
+            println!("cargo:rustc-link-lib=dylib=opengl32");
+            println!("cargo:rustc-link-lib=dylib=glu32");
         }
         _ => {
             println!("cargo:rustc-link-lib=dylib=pthread");
@@ -71,6 +74,8 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=gobject-2.0");
             println!("cargo:rustc-link-lib=dylib=cairo");
             println!("cargo:rustc-link-lib=dylib=pangocairo-1.0");
+            println!("cargo:rustc-link-lib=dylib=GL");
+            println!("cargo:rustc-link-lib=dylib=GLU");
         }
     }
 }
