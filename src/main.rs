@@ -3,12 +3,6 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 const TEST: &str = "#include <cstdint>\nauto main() -> int {}";
 
-#[cfg(all(target_os = "windows", target_family = "msvc"))]
-const CXX: &str = "cl";
-
-#[cfg(not(all(target_os = "windows", target_family = "msvc")))]
-const CXX: &str = "c++";
-
 #[cfg(target_os = "windows")]
 const LIBS: &[&str] = &[
     "ws2_32", "comctl32", "gdi32", "oleaut32", "ole32", "uuid", "shell32", "advapi32", "comdlg32",
@@ -44,6 +38,7 @@ fn good(txt: &str) {
         .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
         .unwrap();
     writeln!(&mut stdout, "{}", txt).unwrap();
+    stdout.reset().unwrap();
 }
 
 fn bad(txt: &str) {
@@ -52,10 +47,24 @@ fn bad(txt: &str) {
         .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
         .unwrap();
     writeln!(&mut stdout, "{}", txt).unwrap();
+    stdout.reset().unwrap();
 }
 
 fn main() {
+    let cxx: &str = if uname() == "msvc" {
+        "cl"
+    } else {
+        "c++"
+    };
+    
     println!("Checking whether this env can build fltk-rs...");
+    if cfg!(target_os = "windows") {
+        if cxx == "c++" {
+            println!("This is testing a posix environment on Windows");
+        } else {
+            println!("This is testing an MSVC environment on Windows");
+        }
+    }
 
     let (maj, min) = rustc_version("rustc");
     if maj == 1 && min > 45 {
@@ -82,7 +91,9 @@ fn main() {
         bad("Ninja is not installed or not in PATH");
     }
 
-    if let Ok(_) = process::Command::new(CXX).arg("--version").output() {
+    let version = if cxx == "cl" { "" } else { "--version" };
+
+    if let Ok(_) = process::Command::new(cxx).arg(version).output() {
         good("Found a C++ compiler!");
     } else {
         bad("A C++ compiler wasn't found");
@@ -96,7 +107,7 @@ fn main() {
     fs::File::create(file).unwrap();
     fs::write(file, TEST).unwrap();
 
-    if let Ok(_) = process::Command::new(CXX).arg(file).output() {
+    if let Ok(_) = process::Command::new(cxx).arg(file).output() {
         good("Found C++ compiler supporting C++11!");
     } else {
         bad("C++ compiler doesn't support C++11!");
@@ -107,7 +118,7 @@ fn main() {
     }
 
     for lib in LIBS {
-        let lib_arg = if CXX == "cl" {
+        let lib_arg = if cxx == "cl" {
             format!("{}.lib", lib)
         } else {
             #[cfg(not(target_os = "macos"))]
@@ -120,11 +131,24 @@ fn main() {
                 format!("-framework {}", lib)
             }
         };
-        if let Ok(c) = process::Command::new(CXX).arg(file).arg(&lib_arg).output() {
-            if c.stderr.is_empty() {
-                good(&format!("Found library: {}!", lib));
+        if let Ok(c) = process::Command::new(cxx).arg(file).arg(&lib_arg).output() {
+            if cxx != "cl" {
+                if c.stderr.is_empty() {
+                    good(&format!("Found library: {}!", lib));
+                } else {
+                    bad(&format!("Library {} was not found!", lib));
+                }
             } else {
-                bad(&format!("Library {} was not found!", lib));
+                if c.stdout.is_empty() {
+                    bad(&format!("Library {} was not found!", lib));
+                } else {
+                    let out = String::from_utf8_lossy(&c.stdout).to_string();
+                    if out.contains("LINK : fatal error") {
+                        bad(&format!("Library {} was not found!", lib));
+                    } else {
+                        good(&format!("Found library: {}!", lib));
+                    }
+                }
             }
         } else {
             bad(&format!("Library {} was not found!", lib));
@@ -136,8 +160,14 @@ fn main() {
     if path::Path::new("a.out").exists() {
         fs::remove_file("a.out").unwrap();
     }
+    if path::Path::new("a.exe").exists() {
+        fs::remove_file("a.exe").unwrap();
+    }
     if path::Path::new("fltk_check_file.exe").exists() {
         fs::remove_file("fltk_check_file.exe").unwrap();
+    }
+    if path::Path::new("fltk_check_file.obj").exists() {
+        fs::remove_file("fltk_check_file.obj").unwrap();
     }
 }
 
@@ -150,4 +180,12 @@ fn rustc_version(executable: &str) -> (u8, u8) {
     let version: Vec<&str> = version.split_whitespace().collect();
     let version: Vec<&str> = version[1].split('.').collect();
     (version[0].parse().unwrap(), version[1].parse().unwrap())
+}
+
+fn uname() -> &'static str {
+    if let Ok(_) = process::Command::new("uname").arg("-a").output() {
+        "gnu"
+    } else {
+        "msvc"
+    }
 }
