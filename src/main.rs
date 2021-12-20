@@ -1,7 +1,12 @@
-use std::{fs, io::Write, path, process};
+use std::{fs, io::Write, path, process, sync::Mutex};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use rayon::iter::{ParallelIterator, IntoParallelIterator};
 
 const TEST: &str = "#include <cstdint>\nauto main() -> int {}";
+
+lazy_static::lazy_static! {
+    static ref STDOUT: Mutex<StandardStream> = Mutex::new(StandardStream::stdout(ColorChoice::Always));
+}
 
 #[cfg(target_os = "windows")]
 const LIBS: &[&str] = &[
@@ -33,7 +38,7 @@ const LIBS: &[&str] = &[
 ];
 
 fn good(txt: &str) {
-    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    let mut stdout = STDOUT.lock().unwrap();
     stdout
         .set_color(ColorSpec::new().set_fg(Some(Color::Green)))
         .unwrap();
@@ -42,7 +47,7 @@ fn good(txt: &str) {
 }
 
 fn bad(txt: &str) {
-    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    let mut stdout = STDOUT.lock().unwrap();
     stdout
         .set_color(ColorSpec::new().set_fg(Some(Color::Red)))
         .unwrap();
@@ -51,13 +56,9 @@ fn bad(txt: &str) {
 }
 
 fn main() {
-    let cxx: &str = if uname() == "msvc" {
-        "cl"
-    } else {
-        "c++"
-    };
-    
-    println!("Checking whether this env can build fltk-rs...");
+    let cxx: &str = if uname() == "msvc" { "cl" } else { "c++" };
+
+    println!("Checking whether this env can build fltk-rs..");
     if cfg!(target_os = "windows") {
         if cxx == "c++" {
             println!("This is testing a posix environment on Windows");
@@ -117,7 +118,7 @@ fn main() {
         return;
     }
 
-    for lib in LIBS {
+    LIBS.into_par_iter().for_each(|lib| {
         let lib_arg = if cxx == "cl" {
             format!("{}.lib", lib)
         } else {
@@ -153,7 +154,7 @@ fn main() {
         } else {
             bad(&format!("Library {} was not found!", lib));
         }
-    }
+    });
     if path::Path::new(file).exists() {
         fs::remove_file(file).unwrap();
     }
