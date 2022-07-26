@@ -46,6 +46,15 @@ fn good(txt: &str) {
     stdout.reset().unwrap();
 }
 
+fn warn(txt: &str) {
+    let mut stdout = STDOUT.lock().unwrap();
+    stdout
+        .set_color(ColorSpec::new().set_fg(Some(Color::Orange)))
+        .unwrap();
+    writeln!(&mut stdout, "{}", txt).unwrap();
+    stdout.reset().unwrap();
+}
+
 fn bad(txt: &str) {
     let mut stdout = STDOUT.lock().unwrap();
     stdout
@@ -89,7 +98,7 @@ fn main() {
     if let Ok(_) = process::Command::new("ninja").arg("--version").output() {
         good("Found working Ninja executable!");
     } else {
-        bad("Ninja is not installed or not in PATH");
+        warn("Ninja is not installed or not in PATH");
     }
 
     let version = if cxx == "cl" { "" } else { "--version" };
