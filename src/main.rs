@@ -49,7 +49,7 @@ fn good(txt: &str) {
 fn warn(txt: &str) {
     let mut stdout = STDOUT.lock().unwrap();
     stdout
-        .set_color(ColorSpec::new().set_fg(Some(Color::Orange)))
+        .set_color(ColorSpec::new().set_fg(Some(Color::Yellow)))
         .unwrap();
     writeln!(&mut stdout, "{}", txt).unwrap();
     stdout.reset().unwrap();
