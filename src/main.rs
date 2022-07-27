@@ -76,9 +76,9 @@ fn main() {
         }
     }
 
-    let (maj, min) = rustc_version("rustc");
+    let (maj, min, host) = rustc_version("rustc");
     if maj == 1 && min > 45 {
-        good("Found suitable Rust version!");
+        good(&format!("Found suitable Rust version for host {}!", host));
     } else {
         bad("You need Rust version 1.46 or higher!");
     }
@@ -181,15 +181,16 @@ fn main() {
     }
 }
 
-fn rustc_version(executable: &str) -> (u8, u8) {
+fn rustc_version(executable: &str) -> (u8, u8, String) {
     let cmd = process::Command::new(executable)
-        .arg("--version")
+        .args(&["--version", "-v"])
         .output()
         .unwrap();
     let version = String::from_utf8_lossy(&cmd.stdout);
     let version: Vec<&str> = version.split_whitespace().collect();
+    let host = version[11];
     let version: Vec<&str> = version[1].split('.').collect();
-    (version[0].parse().unwrap(), version[1].parse().unwrap())
+    (version[0].parse().unwrap(), version[1].parse().unwrap(), host.to_owned())
 }
 
 fn uname() -> &'static str {
