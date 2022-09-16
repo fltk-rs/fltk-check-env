@@ -128,20 +128,30 @@ fn main() {
     }
 
     LIBS.into_par_iter().for_each(|lib| {
-        let lib_arg = if cxx == "cl" {
-            format!("{}.lib", lib)
+        let spec = if cxx == "cl" {
+            ""
         } else {
-            #[cfg(not(target_os = "macos"))]
-            {
-                format!("-l{}", lib)
-            }
-
             #[cfg(target_os = "macos")]
             {
-                format!("-framework {}", lib)
+                "-framework"
+            }
+
+            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+            {
+                "-l"
             }
         };
-        if let Ok(c) = process::Command::new(cxx).arg(file).arg(&lib_arg).output() {
+        let lib_name = if cxx == "cl" {
+            format!("{}.lib", lib)
+        } else {
+            lib.to_string()
+        };
+        let std = if cxx == "cl" {
+            ""
+        } else {
+            "-std=c++11"
+        };
+        if let Ok(c) = process::Command::new(cxx).arg(std).arg(file).arg(&spec).arg(&lib_name).output() {
             if cxx != "cl" {
                 if c.stderr.is_empty() {
                     good(&format!("Found library: {}!", lib));
