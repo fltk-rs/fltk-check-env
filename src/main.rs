@@ -131,13 +131,9 @@ fn main() {
         let spec = if cxx == "cl" {
             ""
         } else {
-            #[cfg(target_os = "macos")]
-            {
+            if cfg!(target_os = "macos") {
                 "-framework"
-            }
-
-            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-            {
+            } else {
                 "-l"
             }
         };
